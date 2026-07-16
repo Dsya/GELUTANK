@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gelutank</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; user-select: none; }
+        body { background: #1a1a1a; color: #fff; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; touch-action: none; }
+        
+        #lobby { background: #252525; padding: 25px; border-radius: 12px; text-align: center; width: 90%; max-width: 400px; border: 2px solid #333; z-index: 10; }
+        h2 { margin-bottom: 15px; color: #00adb5; }
+        .game-title { font-size: 28px; font-weight: 900; letter-spacing: 2px; color: #fff; text-shadow: 0 0 10px rgba(0,173,181,0.6); margin-bottom: 2px; }
+        .game-credit { font-size: 11px; color: #666; margin-bottom: 18px; letter-spacing: 1px; }
+        input[type="text"] { width: 100%; padding: 12px; border-radius: 8px; border: 2px solid #444; background: #111; color: #fff; font-size: 16px; margin-bottom: 15px; outline: none; }
+        
+        .custom-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
+        .custom-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px; }
+        .opt-box { background: #333; border: 2px solid #444; border-radius: 8px; padding: 10px; cursor: pointer; text-align: center; transition: 0.2s; }
+        .opt-box.selected { border-color: #00adb5; background: #1f4044; }
+        
+        .shape-icon { width: 54px; height: 54px; display: block; margin: 0 auto; }
+        .color-box { width: 100%; height: 25px; border-radius: 4px; }
+
+        #tankPreviewWrap { margin-bottom: 16px; display: flex; justify-content: center; }
+        #tankPreview { width: 90px; height: 90px; background: #111; border-radius: 12px; border: 2px solid #2e4a4a; }
+        .mini-label { font-size: 12px; color: #aaa; margin-bottom: 5px; text-align: left; }
+        
+        button#start-btn { width: 100%; padding: 12px; background: #00adb5; border: none; color: white; font-size: 18px; font-weight: bold; border-radius: 8px; cursor: pointer; margin-top: 10px; }
+        
+        #game-container { display: none; position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: #2b2f33; overflow: hidden; }
+        canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+        
+        #leaderboard { position: absolute; top: 15px; right: 15px; background: rgba(0, 0, 0, 0.7); padding: 10px; border-radius: 8px; min-width: 120px; pointer-events: none; z-index: 5; }
+        #leaderboard h3 { font-size: 14px; color: #00adb5; margin-bottom: 5px; border-bottom: 1px solid #555; }
+        .lb-item { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px; }
+        
+        #weapon-status { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6); padding: 8px 20px; border-radius: 20px; font-size: 14px; color: #ccc; pointer-events: none; white-space: nowrap; z-index: 5; }
+        
+        /* Text Notifikasi Double Tap */
+        #tap-notif { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #fff; font-size: 24px; font-weight: bold; pointer-events: none; opacity: 0; transition: opacity 0.1s; z-index: 10; text-shadow: 0 0 10px rgba(0,0,0,0.8); }
+        #tap-notif.show { opacity: 1; }
+    </style>
+</head>
+<body>
+
+    <div id="lobby">
+        <div class="game-title">GELUTANK</div>
+        <div class="game-credit">by DHAMAS</div>
+        <h2>Build Tank</h2>
+
+        <div id="tankPreviewWrap">
+            <canvas id="tankPreview" width="90" height="90"></canvas>
+        </div>
+
+        <input type="text" id="username" placeholder="Nickname..." maxlength="10" value="Player">
+        
+        <div class="mini-label">Pilih Bentuk</div>
+        <div class="custom-grid" id="shape-options">
+            <div class="opt-box selected" data-shape="circle"><canvas class="shape-icon" data-shape-icon="circle" width="54" height="54"></canvas></div>
+            <div class="opt-box" data-shape="square"><canvas class="shape-icon" data-shape-icon="square" width="54" height="54"></canvas></div>
+            <div class="opt-box" data-shape="triangle"><canvas class="shape-icon" data-shape-icon="triangle" width="54" height="54"></canvas></div>
+        </div>
+
+        <div class="mini-label">Pilih Warna (= Tim)</div>
+        <div class="custom-grid" id="color-options">
+            <div class="opt-box selected" data-color="#ff0000"><div class="color-box" style="background: #ff0000;"></div></div>
+            <div class="opt-box" data-color="#00ff00"><div class="color-box" style="background: #00ff00;"></div></div>
+            <div class="opt-box" data-color="#00bfff"><div class="color-box" style="background: #00bfff;"></div></div>
+            <div class="opt-box" data-color="#ffff00"><div class="color-box" style="background: #ffff00;"></div></div>
+            <div class="opt-box" data-color="#ff00ff"><div class="color-box" style="background: #ff00ff;"></div></div>
+            <div class="opt-box" data-color="#ffffff"><div class="color-box" style="background: #ffffff;"></div></div>
+        </div>
+        <div style="font-size: 11px; color: #888; margin-top: -8px; margin-bottom: 15px;">Pemain dengan warna sama otomatis satu tim & tidak bisa saling menyerang</div>
+
+        <button id="start-btn" onclick="joinGame()">BERPERANG!</button>
+    </div>
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        <div id="tap-notif"></div>
+        
+        <div id="leaderboard"><h3>Leaderboard</h3><div id="lb-list"></div></div>
+        <div id="weapon-status">🔫 Double Tap to Shoot</div>
+    </div>
+
+    <audio id="bgMusic" src="/adventure.mp3" loop preload="auto"></audio>
+
+    <script>
+        const myId = 'p_' + Math.random().toString(36).substr(2, 9);
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const bgMusic = document.getElementById('bgMusic');
+        const tapNotif = document.getElementById('tap-notif');
+
+        // --- Suara tembakan disintesis (Web Audio API), tidak lagi pakai file mp3 ---
+        // Ini jauh lebih ringan drpd play/clone <audio> berkali-kali saat baku tembak sengit,
+        // karena tidak ada decode file & tidak bikin banyak elemen audio menumpuk = anti lag.
+        let audioCtx = null;
+        function ensureAudioCtx() {
+            if (!audioCtx) {
+                const AC = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AC();
+            }
+            if (audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{});
+            return audioCtx;
+        }
+        function playShotSynth() {
+            const ac = ensureAudioCtx();
+            const now = ac.currentTime;
+
+            const osc = ac.createOscillator();
+            const gain = ac.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(340, now);
+            osc.frequency.exponentialRampToValueAtTime(70, now + 0.12);
+            gain.gain.setValueAtTime(0.001, now);
+            gain.gain.exponentialRampToValueAtTime(0.28, now + 0.008);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+            osc.connect(gain).connect(ac.destination);
+            osc.start(now);
+            osc.stop(now + 0.16);
+
+            // Sedikit noise burst biar berasa seperti letusan, bukan cuma nada bip
+            const bufferSize = Math.floor(ac.sampleRate * 0.05);
+            const noiseBuffer = ac.createBuffer(1, bufferSize, ac.sampleRate);
+            const data = noiseBuffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+            const noise = ac.createBufferSource();
+            noise.buffer = noiseBuffer;
+            const noiseGain = ac.createGain();
+            noiseGain.gain.setValueAtTime(0.18, now);
+            noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+            noise.connect(noiseGain).connect(ac.destination);
+            noise.start(now);
+        }
+        
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        let build = { shape: 'circle', color: '#ff0000' };
+        let gameState = { players: {}, bullets: [], obstacles: [], bots: [] };
+        let myPlayerData = null;
+        let audioInitialized = false;
+
+        // --- Gambar bentuk tank (dipakai bareng: preview lobby, ikon pilihan, & in-game) ---
+        // Menggelapkan warna hex untuk dipakai sebagai outline (garis pinggir)
+        function darkenColor(hex, amount) {
+            hex = hex.replace('#', '');
+            if (hex.length === 3) hex = hex.split('').map(ch => ch + ch).join('');
+            const r = Math.max(0, parseInt(hex.substr(0, 2), 16) - amount);
+            const g = Math.max(0, parseInt(hex.substr(2, 2), 16) - amount);
+            const b = Math.max(0, parseInt(hex.substr(4, 2), 16) - amount);
+            return `rgb(${r},${g},${b})`;
+        }
+
+        function drawTankShape(c, shape, color, radius) {
+            const outline = darkenColor(color, 60);
+            const lineW = Math.max(2, radius * 0.14);
+
+            c.fillStyle = color;
+            c.strokeStyle = outline;
+            c.lineWidth = lineW;
+            c.lineJoin = 'round';
+
+            if (shape === 'circle') {
+                c.beginPath(); c.arc(0, 0, radius, 0, Math.PI * 2); c.fill(); c.stroke();
+            } else if (shape === 'square') {
+                const s = radius * 2;
+                c.beginPath(); c.rect(-radius, -radius, s, s); c.fill(); c.stroke();
+            } else if (shape === 'triangle') {
+                c.beginPath();
+                c.moveTo(radius * 1.35, 0);
+                c.lineTo(-radius * 0.85, -radius * 1.1);
+                c.lineTo(-radius * 0.85, radius * 1.1);
+                c.closePath(); c.fill(); c.stroke();
+            }
+
+            // laras senjata, dengan outline & sedikit shading spy terlihat 3D
+            const barrelX = radius * 0.8, barrelY = -radius * 0.22;
+            const barrelW = radius * 1.1, barrelH = radius * 0.44;
+            const barrelLineW = Math.max(1.5, radius * 0.07);
+
+            c.fillStyle = '#8a8a8a';
+            c.strokeStyle = '#2e2e2e';
+            c.lineWidth = barrelLineW;
+            c.beginPath(); c.rect(barrelX, barrelY, barrelW, barrelH); c.fill(); c.stroke();
+
+            // highlight tipis di sisi atas laras biar ada kesan cembung
+            c.fillStyle = 'rgba(255,255,255,0.25)';
+            c.fillRect(barrelX + barrelLineW, barrelY + barrelLineW, barrelW - barrelLineW * 2, barrelH * 0.3);
+        }
+
+        // --- Gambar bot (hostile segitiga merah / neutral kotak kuning) ---
+        function drawBotBody(c, kind, radius) {
+            const color = kind === 'hostile' ? '#ff3b3b' : '#ffd93b';
+            const outline = kind === 'hostile' ? '#8a1414' : '#8a7414';
+            c.fillStyle = color;
+            c.strokeStyle = outline;
+            c.lineWidth = Math.max(2, radius * 0.16);
+            c.lineJoin = 'round';
+            if (kind === 'hostile') {
+                c.beginPath();
+                c.moveTo(0, -radius * 1.15);
+                c.lineTo(-radius, radius * 0.8);
+                c.lineTo(radius, radius * 0.8);
+                c.closePath(); c.fill(); c.stroke();
+            } else {
+                const s = radius * 1.6;
+                c.beginPath(); c.rect(-s / 2, -s / 2, s, s); c.fill(); c.stroke();
+            }
+        }
+
+        function renderLobbyPreviews() {
+            // Ikon kecil di tiap opsi bentuk
+            document.querySelectorAll('[data-shape-icon]').forEach(cv => {
+                const ctx2 = cv.getContext('2d');
+                ctx2.clearRect(0, 0, cv.width, cv.height);
+                ctx2.save();
+                ctx2.translate(cv.width / 2, cv.height / 2);
+                drawTankShape(ctx2, cv.dataset.shapeIcon, build.color, 16);
+                ctx2.restore();
+            });
+            // Preview besar "tank kamu" di atas form
+            const prev = document.getElementById('tankPreview');
+            const pctx = prev.getContext('2d');
+            pctx.clearRect(0, 0, prev.width, prev.height);
+            pctx.save();
+            pctx.translate(prev.width / 2, prev.height / 2);
+            drawTankShape(pctx, build.shape, build.color, 26);
+            pctx.restore();
+        }
+
+        // --- Interpolasi gerakan supaya smooth walau server cuma update ~20x/detik ---
+        const POLL_INTERVAL = 50; // ms, samakan dengan setInterval(pollState, 50)
+        let prevState = { players: {}, bullets: [] };
+        let lastPollAt = performance.now();
+
+        // --- Efek visual ---
+        let muzzleFlash = null;      // {life}
+        let hitFlash = 0;            // opacity layar merah saat kena tembak
+        let lastKnownHealth = null;  // untuk deteksi "baru saja kena hit"
+        let deathBursts = [];        // partikel ledakan saat player lain mati
+        let screenShake = 0;
+
+        function lerp(a, b, t) { return a + (b - a) * t; }
+
+        function spawnMuzzleFlash() { muzzleFlash = { life: 1 }; }
+
+        function spawnDeathBurst(x, y, color) {
+            const particles = [];
+            for (let i = 0; i < 14; i++) {
+                const ang = (Math.PI * 2 * i) / 14;
+                particles.push({
+                    x, y,
+                    vx: Math.cos(ang) * (2 + Math.random() * 3),
+                    vy: Math.sin(ang) * (2 + Math.random() * 3),
+                    life: 1, color
+                });
+            }
+            deathBursts.push(...particles);
+        }
+
+        // --- LOGIKA DOUBLE TAP ---
+        let targetX = 0, targetY = 0; 
+        let isTouching = false; // Untuk Move
+        let lastTapTime = 0;
+        let isShooting = false;  // debounce UI (mencegah re-trigger dalam window 500ms)
+        let shootQueued = false; // pulsa 1x sinyal tembak ke server (INI KUNCI FIX "2 peluru")
+
+        // Setup Lobby
+        document.querySelectorAll('#shape-options .opt-box').forEach(el => {
+            el.onclick = () => {
+                document.querySelector('#shape-options .selected').classList.remove('selected');
+                el.classList.add('selected');
+                build.shape = el.dataset.shape;
+                renderLobbyPreviews();
+            }
+        });
+        document.querySelectorAll('#color-options .opt-box').forEach(el => {
+            el.onclick = () => {
+                document.querySelector('#color-options .selected').classList.remove('selected');
+                el.classList.add('selected');
+                build.color = el.dataset.color;
+                renderLobbyPreviews();
+            }
+        });
+        renderLobbyPreviews();
+
+        async function postData(url, data) {
+            try { await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); } catch(e) {}
+        }
+
+        async function joinGame() {
+            let name = document.getElementById('username').value.trim() || "Player";
+            document.getElementById('lobby').style.display = 'none';
+            document.getElementById('game-container').style.display = 'block';
+            
+            await postData('/api/join', { id: myId, name: name, shape: build.shape, color: build.color });
+            
+            initInputListeners();
+            setInterval(pollState, 50);
+            setInterval(sendAction, 40);
+            requestAnimationFrame(gameLoop);
+        }
+
+        function initInputListeners() {
+            // --- KONTROL GERAK (SENTUH TAHAN) ---
+            canvas.addEventListener('touchstart', e => {
+                if(!audioInitialized) {
+                    bgMusic.volume = 0.1; 
+                    bgMusic.play().catch(()=>{});
+                    ensureAudioCtx();
+                    audioInitialized = true;
+                }
+                
+                isTouching = true;
+                const touch = e.touches[0];
+                targetX = touch.clientX;
+                targetY = touch.clientY;
+                
+                // --- LOGIKA DOUBLE TAP (2 Klik) ---
+                const now = Date.now();
+                if (now - lastTapTime < 350) { // 350ms window double tap
+                    triggerShoot();
+                    lastTapTime = 0; // Reset agar tidak triple tap
+                } else {
+                    lastTapTime = now;
+                }
+            });
+            
+            canvas.addEventListener('touchmove', e => {
+                e.preventDefault();
+                if(isTouching) {
+                    const touch = e.touches[0];
+                    targetX = touch.clientX;
+                    targetY = touch.clientY;
+                }
+            }, {passive: false});
+
+            canvas.addEventListener('touchend', () => {
+                isTouching = false;
+            });
+
+            // Dukungan Mouse (PC)
+            canvas.addEventListener('mousemove', e => {
+                if(isTouching) return;
+                targetX = e.clientX;
+                targetY = e.clientY;
+            });
+            canvas.addEventListener('mousedown', (e) => {
+                isTouching = true;
+                targetX = e.clientX;
+                targetY = e.clientY;
+                
+                // Double tap mouse (Klik kiri 2x cepat)
+                const now = Date.now();
+                if (now - lastTapTime < 350) {
+                    triggerShoot();
+                    lastTapTime = 0;
+                } else {
+                    lastTapTime = now;
+                }
+            });
+            canvas.addEventListener('mouseup', () => isTouching = false);
+            canvas.addEventListener('mouseleave', () => isTouching = false);
+
+            // --- FUNGSI TEMBAK ---
+            const playShoot = () => {
+                // Suara tembakan disintesis langsung (bukan file audio) -> ringan, no lag
+                playShotSynth();
+
+                // Tampilkan notifikasi
+                tapNotif.classList.add('show');
+                clearTimeout(tapNotif._timeout);
+                tapNotif._timeout = setTimeout(() => tapNotif.classList.remove('show'), 200);
+
+                // Muzzle flash di ujung moncong
+                spawnMuzzleFlash();
+            };
+
+            const triggerShoot = () => {
+                if (!isShooting) {
+                    playShoot();
+                    isShooting = true;
+                    shootQueued = true; // minta TEPAT 1 peluru ke server
+                    // Reset debounce UI setelah 0.5 detik (tidak lagi mempengaruhi jumlah peluru)
+                    setTimeout(() => {
+                        isShooting = false;
+                    }, 500);
+                }
+            };
+            
+            window.addEventListener('beforeunload', () => { navigator.sendBeacon('/api/leave', JSON.stringify({id: myId})); });
+        }
+
+        async function pollState() {
+            try {
+                const res = await fetch('/api/state');
+                const newState = await res.json();
+
+                // Bandingkan health lama vs baru untuk trigger efek (hit / respawn)
+                for (const id in newState.players) {
+                    const np = newState.players[id];
+                    const op = gameState.players[id];
+                    if (op) {
+                        if (np.health < op.health) {
+                            if (id === myId) { hitFlash = 1; screenShake = 8; }
+                        }
+                        if ((np.deaths || 0) > (op.deaths || 0)) {
+                            // deaths bertambah = beneran baru respawn (bukan sekadar HP naik krn kill)
+                            spawnDeathBurst(op.x, op.y, op.color || '#ffffff');
+                            if (id === myId) { hitFlash = 1; screenShake = 14; }
+                        }
+                    }
+                }
+
+                prevState = gameState;
+                gameState = newState;
+                lastPollAt = performance.now();
+
+                if (gameState.players && gameState.players[myId]) {
+                    myPlayerData = gameState.players[myId];
+                }
+            } catch(e) {}
+        }
+
+        function sendAction() {
+            if (!gameState.players[myId]) return;
+            
+            let moveKeys = { w: false, a: false, s: false, d: false };
+            let angle = 0;
+
+            if (isTouching && myPlayerData) {
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                angle = Math.atan2(targetY - centerY, targetX - centerX);
+
+                const dx = targetX - centerX;
+                const dy = targetY - centerY;
+                const dist = Math.hypot(dx, dy);
+
+                if (dist > 40) { 
+                    if (dy < -20) moveKeys.w = true;
+                    if (dy > 20) moveKeys.s = true;
+                    if (dx < -20) moveKeys.a = true;
+                    if (dx > 20) moveKeys.d = true;
+                }
+            } else {
+                angle = Math.atan2(targetY - canvas.height/2, targetX - canvas.width/2);
+            }
+            // shootQueued = pulsa sekali pakai -> dikonsumsi di sini supaya
+            // TEPAT 1 request /api/action yang membawa shoot:true per double-tap,
+            // apapun panjang cooldown server-nya. Ini yang memperbaiki bug "2 peluru".
+            let shootPayload = false;
+            if (shootQueued) {
+                shootPayload = true;
+                shootQueued = false;
+            }
+            postData('/api/action', { 
+                id: myId, 
+                keys: moveKeys, 
+                angle: angle, 
+                shoot: shootPayload 
+            });
+        }
+
+        function getRenderPlayers() {
+            const t = Math.min(1, (performance.now() - lastPollAt) / POLL_INTERVAL);
+            const result = {};
+            for (const id in gameState.players) {
+                const cur = gameState.players[id];
+                const prev = prevState.players[id];
+                result[id] = prev ? { ...cur, x: lerp(prev.x, cur.x, t), y: lerp(prev.y, cur.y, t) } : cur;
+            }
+            return result;
+        }
+
+        function getRenderBullets() {
+            const t = Math.min(1, (performance.now() - lastPollAt) / POLL_INTERVAL);
+            const prevBullets = {};
+            (prevState.bullets || []).forEach(b => { prevBullets[b.id] = b; });
+            return (gameState.bullets || []).map(b => {
+                const p = prevBullets[b.id];
+                return p ? { ...b, x: lerp(p.x, b.x, t), y: lerp(p.y, b.y, t) } : b;
+            });
+        }
+
+        function getRenderBots() {
+            const t = Math.min(1, (performance.now() - lastPollAt) / POLL_INTERVAL);
+            const prevBots = {};
+            (prevState.bots || []).forEach(b => { prevBots[b.id] = b; });
+            return (gameState.bots || []).map(b => {
+                const p = prevBots[b.id];
+                return p ? { ...b, x: lerp(p.x, b.x, t), y: lerp(p.y, b.y, t) } : b;
+            });
+        }
+
+        function getRenderAllies(pid, curAllies) {
+            const t = Math.min(1, (performance.now() - lastPollAt) / POLL_INTERVAL);
+            const prevPlayer = prevState.players && prevState.players[pid];
+            const prevAllies = {};
+            (prevPlayer && prevPlayer.allies || []).forEach(a => { prevAllies[a.id] = a; });
+            return (curAllies || []).map(a => {
+                const p = prevAllies[a.id];
+                return p ? { ...a, x: lerp(p.x, a.x, t), y: lerp(p.y, a.y, t) } : a;
+            });
+        }
+
+        function drawGame() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const renderPlayers = getRenderPlayers();
+            const renderBullets = getRenderBullets();
+            const me = renderPlayers[myId] || myPlayerData;
+
+            // Grid & Batas Map
+            ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+            ctx.lineWidth = 1;
+            const gridSize = 80;
+            for(let x = 0; x <= canvas.width; x += gridSize) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+            }
+            for(let y = 0; y <= canvas.height; y += gridSize) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+            }
+            
+            ctx.strokeStyle = '#ff3333';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(15, 15, canvas.width - 30, canvas.height - 30);
+
+            ctx.save();
+
+            // Screen shake: getar kamera singkat saat kena hit
+            let shakeX = 0, shakeY = 0;
+            if (screenShake > 0) {
+                shakeX = (Math.random() - 0.5) * screenShake;
+                shakeY = (Math.random() - 0.5) * screenShake;
+                screenShake *= 0.85;
+                if (screenShake < 0.5) screenShake = 0;
+            }
+
+            if (me) {
+                ctx.translate(canvas.width / 2 - me.x + shakeX, canvas.height / 2 - me.y + shakeY);
+            }
+
+            // Render Obstacles (pentagon ungu, ukuran bervariasi, HP bar sengaja disembunyikan)
+            if (gameState.obstacles) {
+                gameState.obstacles.forEach(obs => {
+                    ctx.save();
+                    ctx.translate(obs.x, obs.y);
+                    ctx.rotate(obs.rotation || 0);
+                    ctx.beginPath();
+                    for (let i = 0; i < 5; i++) {
+                        const angle = -Math.PI / 2 + i * (Math.PI * 2 / 5);
+                        const px = Math.cos(angle) * obs.radius;
+                        const py = Math.sin(angle) * obs.radius;
+                        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+                    }
+                    ctx.closePath();
+                    ctx.fillStyle = '#7b6ff2';
+                    ctx.strokeStyle = '#4b3fa8';
+                    ctx.lineWidth = 3;
+                    ctx.fill();
+                    ctx.stroke();
+                    ctx.restore();
+                });
+            }
+
+            // Render Bot (hostile & neutral) + hp bar
+            const renderBots = getRenderBots();
+            renderBots.forEach(bot => {
+                ctx.save();
+                ctx.translate(bot.x, bot.y);
+                ctx.rotate((bot.angle || 0) + Math.PI / 2); // +90deg krn bentuk segitiga menghadap ke atas
+                drawBotBody(ctx, bot.kind, 20);
+                ctx.restore();
+
+                const barWidth = 34, barHeight = 5;
+                const startX = bot.x - barWidth / 2, startY = bot.y - 32;
+                ctx.fillStyle = '#444'; ctx.fillRect(startX, startY, barWidth, barHeight);
+                ctx.fillStyle = bot.kind === 'hostile' ? '#ff5555' : '#00ff66';
+                ctx.fillRect(startX, startY, barWidth * (bot.hp / bot.max_hp), barHeight);
+            });
+
+            // Render Bullets (peluru melee sengaja TIDAK digambar / invisible,
+            // hanya peluru ranged yang terlihat dengan jejak bercahaya)
+            renderBullets.forEach(b => {
+                if (b.type === 'melee') return; // invisible, tapi collision di server tetap jalan
+                const glowColor = b.type === 'hostile' ? '#ff8c1a' : (b.type === 'ally' ? '#3bffce' : '#ff4a4a');
+                ctx.save();
+                ctx.shadowColor = glowColor;
+                ctx.shadowBlur = 12;
+                ctx.fillStyle = glowColor;
+                ctx.beginPath(); ctx.arc(b.x, b.y, b.size || 6, 0, Math.PI * 2); ctx.fill();
+                ctx.restore();
+            });
+
+            // Render partikel ledakan (saat ada yang mati)
+            deathBursts.forEach(pt => {
+                pt.x += pt.vx; pt.y += pt.vy; pt.life -= 0.04;
+                ctx.globalAlpha = Math.max(0, pt.life);
+                ctx.fillStyle = pt.color;
+                ctx.beginPath(); ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2); ctx.fill();
+                ctx.globalAlpha = 1;
+            });
+            deathBursts = deathBursts.filter(pt => pt.life > 0);
+
+            // Render Players
+            for (let id in renderPlayers) {
+                const p = renderPlayers[id];
+                if (p.health <= 0) continue;
+
+                // Ally / Shield: mengorbit & mengikuti pemiliknya, melindungi dari peluru
+                const renderAllies = getRenderAllies(id, p.allies);
+                renderAllies.forEach(ally => {
+                    ctx.save();
+                    ctx.translate(ally.x, ally.y);
+                    ctx.globalAlpha = 0.95;
+                    drawBotBody(ctx, 'neutral', 13);
+                    ctx.restore();
+                    // pip HP kecil di atas ally
+                    const startXa = ally.x - 12;
+                    for (let i = 0; i < ally.max_hp; i++) {
+                        ctx.fillStyle = (i < ally.hp) ? '#00ff66' : '#444444';
+                        ctx.fillRect(startXa + i * 8, ally.y - 22, 6, 4);
+                    }
+                });
+
+                ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.angle);
+
+                // Muzzle flash hanya untuk player sendiri, saat baru saja menembak
+                if (id === myId && muzzleFlash && muzzleFlash.life > 0) {
+                    ctx.save();
+                    ctx.globalAlpha = muzzleFlash.life;
+                    ctx.fillStyle = '#fff59d';
+                    ctx.shadowColor = '#ffe066'; ctx.shadowBlur = 20;
+                    ctx.beginPath(); ctx.arc(32, 0, 10 * muzzleFlash.life + 4, 0, Math.PI * 2); ctx.fill();
+                    ctx.restore();
+                }
+
+                drawTankShape(ctx, p.shape, p.color || '#7289da', 18);
+                ctx.restore();
+
+                ctx.fillStyle = '#fff'; ctx.font = '12px sans-serif'; ctx.textAlign = 'center';
+                ctx.fillText(p.name, p.x, p.y - 38);
+                const startX = p.x - 25;
+                for (let i = 0; i < 10; i++) {
+                    ctx.fillStyle = (i < p.health) ? '#00ff66' : '#444444';
+                    ctx.fillRect(startX + i * 5, p.y - 28, 4, 4);
+                }
+            }
+            
+            ctx.restore();
+
+            // Muzzle flash meluruh
+            if (muzzleFlash) {
+                muzzleFlash.life -= 0.18;
+                if (muzzleFlash.life <= 0) muzzleFlash = null;
+            }
+
+            // Overlay layar merah saat kena tembak
+            if (hitFlash > 0) {
+                ctx.fillStyle = `rgba(255,0,0,${hitFlash * 0.35})`;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                hitFlash -= 0.06;
+                if (hitFlash < 0) hitFlash = 0;
+            }
+
+            updateLeaderboardDisplay();
+        }
+
+        function updateLeaderboardDisplay() {
+            const lbList = document.getElementById('lb-list');
+            if (!gameState.players) return;
+            const sortedPlayers = Object.values(gameState.players).sort((a,b) => b.score - a.score);
+            lbList.innerHTML = '';
+            sortedPlayers.slice(0, 5).forEach((p, index) => {
+                const item = document.createElement('div');
+                item.className = 'lb-item';
+                item.innerHTML = `<span>${index + 1}. ${p.name}</span> <strong>${p.score}</strong>`;
+                if(p.id === myId) item.style.color = '#00adb5';
+                lbList.appendChild(item);
+            });
+        }
+
+        function gameLoop() {
+            drawGame();
+            requestAnimationFrame(gameLoop);
+        }
+    </script>
+</body>
+</html>
